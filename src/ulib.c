@@ -3,6 +3,7 @@
 #include "fcntl.h"
 #include "user.h"
 #include "x86.h"
+#include "ticketlock.h"
 #define PGSIZE    4096
 
 char*
@@ -111,9 +112,24 @@ int thread_create(void(*start_routine)(void*, void*), void* arg1, void* arg2){
 
   stack = malloc(PGSIZE);
   return clone(start_routine, arg1, arg2, stack);
+
 }
 
 int thread_join(){
   void * stack_ptr;
   return join(&stack_ptr);
+}
+
+void lock_init (lock_t *lock){
+  lock->ticket = 0;
+  lock->turn = 0;
+}
+
+void lock_acquire(lock_t *lock){
+  int myturn = fech_and_add(&lock->ticket);
+  while (lock->turn != myturn); //spin to net
+}
+
+void lock_release(lock_t *lock){
+  lock->turn += 1;
 }
