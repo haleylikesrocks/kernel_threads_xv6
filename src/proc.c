@@ -617,6 +617,7 @@ join(void** stack)
       if(p->state == ZOMBIE){
         // Found one.
         pid = p->pid;
+        //stack = p->threadstack;
         kfree(p->kstack);
         p->kstack = 0;
         // freevm(p->pgdir); this would be bad cuz the parent shares the pgdir with the thread
