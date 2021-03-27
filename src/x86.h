@@ -145,7 +145,7 @@ lcr3(uint val)
 }
 
 static inline uint
-fech_and_add(volatile uint *addr, uint val){
+fech_and_add(int *addr, int val){
   asm volatile("lock; xaddl %%eax, %2;" :
                "=a" (val) :
                "a" (val) , "m" (*addr) :

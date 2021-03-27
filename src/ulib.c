@@ -3,7 +3,7 @@
 #include "fcntl.h"
 #include "user.h"
 #include "x86.h"
-#include "ticketlock.h"
+// #include "ticketlock.h"
 #define PGSIZE    4096
 
 char*
@@ -117,7 +117,8 @@ int thread_create(void(*start_routine)(void*, void*), void* arg1, void* arg2){
 
 int thread_join(){
   void * stack_ptr;
-  return join(&stack_ptr);
+  int x = join(&stack_ptr);
+  return x;
 }
 
 void lock_init (lock_t *lock){
@@ -126,8 +127,8 @@ void lock_init (lock_t *lock){
 }
 
 void lock_acquire(lock_t *lock){
-  int myturn = fech_and_add(&lock->ticket);
-  while (lock->turn != myturn); //spin to net
+  // int myturn = fech_and_add(&lock->ticket, 1);
+  // while (lock->turn != myturn); //spin to net
 }
 
 void lock_release(lock_t *lock){

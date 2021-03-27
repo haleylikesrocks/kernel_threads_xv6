@@ -538,20 +538,15 @@ int clone(void(*fcn)(void*, void*), void* arg1, void* arg2, void* stack){
   struct proc *np;
   struct proc *curproc = myproc();
 
-  if((uint) stack % PGSIZE != 0){
-    panic("clone: page is not aligned");
-    return -1;
-  }
+  // if((uint) stack % PGSIZE != 0)
+  //   return -1;
 
-  if(curproc->sz - (uint)stack < PGSIZE){
-    panic("clone: less than a page of memory");
+  if(curproc->sz - (uint)stack < PGSIZE)
     return -1;
-  }
 
   // Allocate process.
-  if((np = allocproc()) == 0){
+  if((np = allocproc()) == 0)
     return -1;
-  }
 
   np->pgdir = curproc->pgdir; //copy page directory from the current process
   np->sz = curproc->sz;
@@ -559,25 +554,45 @@ int clone(void(*fcn)(void*, void*), void* arg1, void* arg2, void* stack){
   *np->tf = *curproc->tf;
 
   // have to put the args of the function into the stack
-  uint user_stack[3];
-  user_stack[0] = 0xffffffff;
-  user_stack[1] = (uint) arg1;
-  user_stack[2] = (uint) arg2;
-  uint stack_top = (uint) stack + PGSIZE; // set th stack top
-  stack_top -= 12; // making room for the values we just added to the stack
+  void * stackArg1, *stackArg2, *stackRet;
 
-  if(copyout(np->pgdir, stack_top, user_stack, 12) < 0){
-    panic("clone:creating the stack went awry");
-    return -1;
-  }
+  //pushing the fake return address to the stack of thread
+  stackRet = stack + PGSIZE -(3*sizeof(void *));
+  *(uint*)stackRet = 0xFFFFFFF;
 
-  np->tf->ebp = (uint) stack_top; //set stack base and stack pointer to stack top
-  np->tf->esp = (uint) stack_top;
-  np->tf->eip = (uint) fcn; // set the instruction pointer to the function
+  //pushing the first argument to the stack of thread
+  stackArg1 = stack + PGSIZE -(2*sizeof(void *));
+  *(uint*)stackArg1 = (uint)arg1;
 
-  // Clear %eax so that fork returns 0 in the child.
-  np->tf->eax = 0;
+  //pushing the second argument to the stack of thread
+  stackArg2 = stack + PGSIZE - sizeof(void *);
+  *(uint*)stackArg2 = (uint)arg2;
+  //previous - tried to creat/ put args onto stck
+  //   uint user_stack[3];
+  //   user_stack[0] = 0xffffffff;
+  //   user_stack[1] = (uint) arg1;
+  //   user_stack[2] = (uint) arg2;
+  //   uint stack_top = (uint) stack + PGSIZE; // set th stack top
+  //   stack_top -= 12; // making room for the values we just added to the stack
 
+  np->tf->esp = (uint) stack; //putting the address of stack in the stack pointer
+  np->tf->eax = 0;  // Clear %eax so that fork returns 0 in the child.
+  np->threadstack = stack;   //saving the address of the stack
+
+
+  //   if(copyout(np->pgdir, stack_top, user_stack, 12) < 0){
+  //     // panic("clone:creating the stack went awry");
+  //     return -1;
+  //   }
+
+  //   // np->tf->ebp = (uint) stack_top; //set stack base and stack pointer to stack top
+  //   np->tf->eip = (uint) fcn; // set the instruction pointer to the function
+
+  np->tf->esp += PGSIZE -(3*sizeof(void*)) ;
+  np->tf->ebp = np->tf->esp;
+  np->tf->eip = (uint) fcn; //begin excuting code from this function 
+
+  // from fork
   for(i = 0; i < NOFILE; i++)
     if(curproc->ofile[i])
       np->ofile[i] = filedup(curproc->ofile[i]);
@@ -596,48 +611,52 @@ int clone(void(*fcn)(void*, void*), void* arg1, void* arg2, void* stack){
   return pid;
 }
 
+
 int
 join(void** stack)
 {
-  struct proc *p;
+  struct proc *p;           // The thread iterator
   int havekids, pid;
-  struct proc *curproc = myproc();
-  
+  struct proc *cp = myproc();
   acquire(&ptable.lock);
   for(;;){
-    // Scan through table looking for exited children.
-    havekids = 0;
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->pgdir == curproc->pgdir){
-        continue;
-      }
-      if(p->parent != curproc)
-        continue;
+      // Scan through table looking for zombie children.
+      havekids = 0;
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+
+      // If the current process is not my parent or share the same address space...  
+      if(p->parent != cp || p->pgdir != p->parent->pgdir)
+        continue; // You are not a thread
+       
       havekids = 1;
       if(p->state == ZOMBIE){
-        // Found one.
-        pid = p->pid;
-        //stack = p->threadstack;
+	      pid = p->pid;
+        // Removing thread from the kernal stack
         kfree(p->kstack);
         p->kstack = 0;
-        // freevm(p->pgdir); this would be bad cuz the parent shares the pgdir with the thread
+
+        // Reseting thread from the process table
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
+        stack = p->threadstack;
+        p->threadstack = 0;
+
         release(&ptable.lock);
-        return pid;
+	      return pid;
       }
+      
     }
 
     // No point waiting if we don't have any children.
-    if(!havekids || curproc->killed){
+    if(!havekids || cp->killed){
       release(&ptable.lock);
       return -1;
     }
 
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
-    sleep(curproc, &ptable.lock);  //DOC: wait-sleep
+    sleep(cp, &ptable.lock);  //DOC: wait-sleep
   }
 }
