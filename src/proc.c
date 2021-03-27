@@ -634,15 +634,15 @@ join(void** stack)
         // Removing thread from the kernal stack
         kfree(p->kstack);
         p->kstack = 0;
-
-        // Reseting thread from the process table
+        
+        stack = p->threadstack;
+        p->threadstack = 0;
         p->pid = 0;
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
         p->state = UNUSED;
-        stack = p->threadstack;
-        p->threadstack = 0;
+      
 
         release(&ptable.lock);
 	      return pid;

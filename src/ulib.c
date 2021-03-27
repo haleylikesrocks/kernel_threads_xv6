@@ -127,8 +127,8 @@ void lock_init (lock_t *lock){
 }
 
 void lock_acquire(lock_t *lock){
-  // int myturn = fech_and_add(&lock->ticket, 1);
-  // while (lock->turn != myturn); //spin to net
+  int myturn = fech_and_add(&lock->ticket, 1);
+  while (lock->turn != myturn); //spin to net
 }
 
 void lock_release(lock_t *lock){

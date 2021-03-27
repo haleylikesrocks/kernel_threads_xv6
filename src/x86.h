@@ -144,12 +144,13 @@ lcr3(uint val)
   asm volatile("movl %0,%%cr3" : : "r" (val));
 }
 
-static inline uint
+static inline int
 fech_and_add(int *addr, int val){
-  asm volatile("lock; xaddl %%eax, %2;" :
-               "=a" (val) :
-               "a" (val) , "m" (*addr) :
-               "memory");
+  __asm__ volatile("lock; xaddl %0, %1"
+        : "+r" (val), "+m" (*addr) // input + output
+        : // No input-only
+        : "memory"
+      );
   return val;
 }
 
