@@ -10,27 +10,15 @@
 
 int sys_clone(void)
 {
-  // void (*fcn)(void*, void*);
-  // void *arg1;
-  // void *arg2;
-  // void *stack;
+  void (*fcn)(void*, void*);
 
-  // if(argptr(0, (void*)&fcn, sizeof(void*)) < 0){
-  //   return -1;
-  // }
-  // if(argptr(1, (void*)&arg1, sizeof(void*)) < 0){
-  //   return -1;
-  // }
-  // if(argptr(2, (void*)&arg2, sizeof(void*)) < 0){
-  //   return -1;
-  // }
-  // if(argptr(3, (void*)&stack, sizeof(void*)) < 0){
-  //   return -1;
-  // }
+  if(argptr(0, (void*)&fcn, sizeof(void*)) < 0){
+    return -1;
+  }
 
-  int fcn, arg1, arg2, stack;
+  int arg1, arg2, stack;
 
-  if(argint(0, &fcn) < 0 || argint(1, &arg1) < 0 || argint(2, &arg2) <0 || argint(3, &stack) < 0)
+  if(argint(1, &arg1) < 0 || argint(2, &arg2) <0 || argint(3, &stack) < 0)
     return -1;
 
   return clone((void*)fcn, (void*)arg1, (void*)arg2, (void*)stack);
